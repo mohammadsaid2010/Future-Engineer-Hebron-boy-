@@ -1,0 +1,90 @@
+import RPi.GPIO as GPIO
+import time
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+IN3 = 5
+IN4 = 6
+SERVO_PIN = 12
+
+
+GPIO.setup(IN3, GPIO.OUT)
+GPIO.setup(IN4, GPIO.OUT)
+GPIO.output(IN4, GPIO.LOW) 
+
+pwm = GPIO.PWM(IN3, 100)
+pwm.start(0)
+
+
+GPIO.setup(SERVO_PIN, GPIO.OUT)
+servo_pwm = GPIO.PWM(SERVO_PIN, 50)
+servo_pwm.start(0)
+
+
+TRIG = 17
+ECHO = 21
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+
+def read_distance():
+    GPIO.output(TRIG, False)
+    time.sleep(0.05)
+    GPIO.output(TRIG, True)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+
+    pulse_start = time.time()
+    timeout = pulse_start + 0.04
+    while GPIO.input(ECHO) == 0 and time.time() < timeout:
+        pulse_start = time.time()
+
+    pulse_end = time.time()
+    timeout = pulse_end + 0.04
+    while GPIO.input(ECHO) == 1 and time.time() < timeout:
+        pulse_end = time.time()
+
+    pulse_duration = pulse_end - pulse_start
+    distance = pulse_duration * 17150
+    return round(distance, 2)
+
+def set_servo_angle(angle):
+    duty = angle / 18 + 2
+    servo_pwm.ChangeDutyCycle(duty)
+    time.sleep(0.9)
+    servo_pwm.ChangeDutyCycle(0)
+
+def move_forward(speed_percent):
+    pwm.ChangeDutyCycle(speed_percent)
+
+def stop():
+    pwm.ChangeDutyCycle(0)
+
+try:
+    start_time = time.time()
+    while time.time() - start_time < 50:
+        dist = read_distance()
+        print(f"Distance: {dist} cm")
+
+        if dist <= 100:
+            print("Obstacle! Slight left turn while moving...")
+            while dist <= 70:
+                move_forward(40)        
+                set_servo_angle(40)     
+                time.sleep(0.4)
+                set_servo_angle(85)    
+                dist = read_distance()
+                print(f"Checking again: {dist} cm")
+        else:
+            move_forward(40)          
+
+        time.sleep(0.1)
+
+except KeyboardInterrupt:
+    print("Stopped by user")
+
+finally:
+    stop()
+    servo_pwm.stop()
+    pwm.stop()
+    GPIO.cleanup()

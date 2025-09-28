@@ -1,0 +1,7 @@
+This table represents an integrated system for a smart car operating on Raspberry Pi.
+The system contains 22 essential components that work together harmoniously to achieve autonomous driving and artificial intelligence.
+At the heart of the system is the Raspberry Pi 4, serving as the main control unit, acting as the "brain" that processes all data and makes critical decisions, supported by a high-speed memory card to store the operating system and complex programs.
+Connected to this brain is a high-resolution camera acting as the car's "eye," continuously capturing images of the surrounding environment and analyzing them to determine the path, obstacles, and colored signals.
+The motion system consists of three specialized motors: a powerful servo motor for steering that precisely controls the front wheels, and two separate electric motors for the rear wheels, providing the necessary power for forward and backward movement. 
+These motors are controlled by the L298N motor driver, which regulates their speed and direction based on signals from the main control unit. 
+To ensure safety and avoid collisions, the system includes a network of three strategically placed ultrasonic sensors: one at the front to detect direct obstacles, and two on the sides to measure the distance from walls and barriers.

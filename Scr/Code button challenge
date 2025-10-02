@@ -1,0 +1,150 @@
+import RPi.GPIO as GPIO
+import time
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+BUTTON = 16
+GPIO.setup(BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+IN3 = 5
+IN4 = 6
+GPIO.setup(IN3, GPIO.OUT)
+GPIO.setup(IN4, GPIO.OUT)
+GPIO.output(IN4, GPIO.LOW)
+motor_pwm = GPIO.PWM(IN3, 100)
+motor_pwm.start(0)
+
+SERVO_PIN = 12
+GPIO.setup(SERVO_PIN, GPIO.OUT)
+servo_pwm = GPIO.PWM(SERVO_PIN, 50)
+servo_pwm.start(0)
+
+TRIG = 17
+ECHO = 21
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+
+WALL_DISTANCE = 65
+CLOCKWISE = False
+TURN_ANGLE_RIGHT = 35
+TURN_ANGLE_LEFT = 125
+TURN_ANGLE_STRAIGHT = 83
+MOTOR_SPEED = 50
+
+def read_distance():
+    GPIO.output(TRIG, False)
+    time.sleep(0.1)
+    
+    GPIO.output(TRIG, True)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, False)
+    
+    timeout_start = time.time()
+    while GPIO.input(ECHO) == 0:
+        pulse_start = time.time()
+        if pulse_start - timeout_start > 0.1:
+            return 999
+    
+    timeout_end = time.time()
+    while GPIO.input(ECHO) == 1:
+        pulse_end = time.time()
+        if pulse_end - timeout_end > 0.1:
+            return 999
+    
+    pulse_duration = pulse_end - pulse_start
+    distance = pulse_duration * 17150
+    
+    if distance < 2 or distance > 400:
+        return 999
+    
+    return round(distance, 2)
+
+def set_servo_angle(angle):
+    duty = angle / 18 + 2
+    servo_pwm.ChangeDutyCycle(duty)
+    time.sleep(0.5)
+    servo_pwm.ChangeDutyCycle(0)
+
+def move_forward(speed_percent):
+    motor_pwm.ChangeDutyCycle(speed_percent)
+
+def stop():
+    motor_pwm.ChangeDutyCycle(0)
+
+def wait_for_button_press():
+    print("Waiting for button press...")
+    
+    while GPIO.input(BUTTON) == GPIO.HIGH:
+        time.sleep(0.05)
+    
+    time.sleep(0.3)
+    while GPIO.input(BUTTON) == GPIO.LOW:
+        time.sleep(0.05)
+    
+    print("Button pressed! Starting...")
+
+try:
+    print("\n" + "="*50)
+    print("WRO ROBOT - Wall Following")
+    print("="*50)
+    print("Press button on GPIO 16 to start...")
+    
+    wait_for_button_press()
+    time.sleep(1)
+    
+    turn_count = 0
+    target_turns = 12
+    
+    set_servo_angle(TURN_ANGLE_STRAIGHT)
+    time.sleep(2.)
+    move_forward(MOTOR_SPEED)
+    
+    print("\nRobot running...\n")
+    
+    while turn_count < target_turns:
+        dist = read_distance()
+        
+        print(f"Distance: {dist} cm | Turns: {turn_count}/{target_turns}", end="\r")
+        
+        if dist < WALL_DISTANCE:
+            print(f"\n\nWALL at {dist} cm - Turn #{turn_count + 1}")
+            
+            stop()
+            time.sleep(0.2)
+            
+            if CLOCKWISE:
+                print("RIGHT turn...")
+                set_servo_angle(TURN_ANGLE_RIGHT)
+            else:
+                print("LEFT turn...")
+                set_servo_angle(TURN_ANGLE_LEFT)
+            
+            move_forward(MOTOR_SPEED)
+            time.sleep(1.450)
+            
+            set_servo_angle(TURN_ANGLE_STRAIGHT)
+            
+            turn_count += 1
+            print(f"Turn {turn_count}/{target_turns} done!\n")
+            
+            time.sleep(1)
+        
+        time.sleep(0.1)
+    
+    print("\n\n" + "="*50)
+    print("3 LAPS COMPLETE!")
+    print("="*50)
+    stop()
+    set_servo_angle(TURN_ANGLE_STRAIGHT)
+
+except KeyboardInterrupt:
+    print("\n\nStopped by user")
+    stop()
+
+finally:
+    stop()
+    servo_pwm.stop()
+    motor_pwm.stop()
+    GPIO.cleanup()
+    print("\nCleanup done")
